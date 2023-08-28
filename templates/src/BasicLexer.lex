@@ -32,7 +32,7 @@ digit [0-9]
   // subroutines
 
 int yywrap(void) {
-  return 1;
+  return 1; // return 1 represent over
 }
 
 
