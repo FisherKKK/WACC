@@ -3,18 +3,27 @@
 #include <string.h>
 #include <stdio.h>
 #include "util.h"
-// #include "ast.h"
-// #include "y.tab.h"
+#define MAXL 10000
+#include "ast.h"
+#include "y.tab.h"
 void yyerror(char *s);
+char buf[MAXL], *str;
 %}
 
 digit       [0-9]
+%x STRINGMOD
 
 %%
-[-()<>\[\]=+*/;{}.,]            return *yytext;
+[-()<>\[\]=+*/;{}.,!%]           return *yytext;
+"len"                           return LEN;
+"ord"                           return ORD;
+"chr"                           return CHR;
 ">="                            return GE;
 "<="                            return LE;
 "!="                            return NE;
+"=="                            return EQ;
+"&&"                            return AND;
+"||"                            return OR;
 "begin"                         return BEGIN;
 "end"                           return END;
 "is"                            return IS;
@@ -48,6 +57,24 @@ digit       [0-9]
                                     return CHAR_CONSTANT;
                                 }
 
+\"                              { BEGIN STRINGMOD; str = buf; }   
+<STRINGMOD>\\\\                 { *str++ = '\\'; }
+<STRINGMOD>\\\"                 { *str++ = '\"'; }
+<STRINGMOD>\\0                  { *str++ = '\0'; }
+<STRINGMOD>\\b                  { *str++ = '\b'; }
+<STRINGMOD>\\t                  { *str++ = '\t'; }
+<STRINGMOD>\\n                  { *str++ = '\n'; }
+<STRINGMOD>\\f                  { *str++ = '\f'; }
+<STRINGMOD>\\r                  { *str++ = '\r'; }
+<STRINGMOD>\"                   { 
+                                    *str = '\0'; BEGIN 0;
+                                    yyval.val.sval = strdup(buf);
+                                    yyval.val.vType = STRING;
+                                }
+<STRINGMOD>\n                   { exit(100); }
+<STRINGMOD>.                    { *str++ = *yytext; }
+
+
 [A-Za-z_][A-Za-z0-9_]*          {
                                     yyval.index = BKDHash(yytext);
                                     return IDENTIFIER;
@@ -60,8 +87,8 @@ digit       [0-9]
                                 }
 
 
-#.*\n                           // 注释语句不处理
-[ \t\n]                         
+#.*\n                           { } // 注释语句不处理
+[ \t\n]                         { } // 不处理空白符
 .                               yyerror("Unknown Character");
 %%
 
