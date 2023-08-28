@@ -1,25 +1,20 @@
 %{
 #include <stdlib.h>
 #include <string.h>
-#include "ast.h"
-#include "y.tab.h"
+#include <stdio.h>
+#include "util.h"
+// #include "ast.h"
+// #include "y.tab.h"
 void yyerror(char *s);
 %}
 
 digit       [0-9]
-letter      [A-Za-z]
 
 %%
-
-
-[A-Za-z_][A-Za-z0-9_]*          return IDENTIFIER;
-{digit}+                        return INTEGER;
-\#.*\n                          {printf("This is comment")}
-"("                             return OPEN_PARENTHESES;
-")"                             return CLOSE_PARENTHESES;
-"["                             return OPEN_BRACKET;
-"]"                             return CLOSE_BRACKET;
-","                             return COMMA;
+[-()<>\[\]=+*/;{}.,]            return *yytext;
+">="                            return GE;
+"<="                            return LE;
+"!="                            return NE;
 "begin"                         return BEGIN;
 "end"                           return END;
 "is"                            return IS;
@@ -47,9 +42,30 @@ letter      [A-Za-z]
 "false"                         return FALSE;
 "null"                          return NULLX;
 
+'[^'\n\"\\]'|'\\[0btnfr\"'\\]'  { 
+                                    yylval.val.intval = convertchar(yytext); 
+                                    yyval.val.vType = CHARACTER; 
+                                    return CHAR_CONSTANT;
+                                }
+
+[A-Za-z_][A-Za-z0-9_]*          {
+                                    yyval.index = BKDHash(yytext);
+                                    return IDENTIFIER;
+                                }
+
+{digit}+                        { 
+                                    yylval.val.intval = atoi(yytext); 
+                                    yyval.val.vType = INTEGER; 
+                                    return INTEGER_CONSTANT; 
+                                }
+
+
+#.*\n                           // 注释语句不处理
+[ \t\n]                         
+.                               yyerror("Unknown Character");
 %%
 
-%%
-
-%%
+int yywrap(void) {
+  return 1; // return 1 represent over
+}
 
