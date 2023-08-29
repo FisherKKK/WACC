@@ -14,7 +14,7 @@ digit       [0-9]
 %x STRINGMOD
 
 %%
-[-()<>\[\]=+*/;{}.,!%]           return *yytext;
+[-()<>\[\]=+*/;{}.,!%]          return *yytext;
 "len"                           return LEN;
 "ord"                           return ORD;
 "chr"                           return CHR;
@@ -45,7 +45,7 @@ digit       [0-9]
 "snd"                           return SND;
 "newpair"                       return NEWPAIR;
 "call"                          return CALL;
-"int"|"bool"|"char"|"string"    return TYPE;
+"int"|"bool"|"char"|"string"    return BASETYPE;
 "pair"                          return PAIR;
 "true"                          return TRUE;
 "false"                         return FALSE;
@@ -70,6 +70,7 @@ digit       [0-9]
                                     *str = '\0'; BEGIN 0;
                                     yyval.val.sval = strdup(buf);
                                     yyval.val.vType = STRING;
+                                    return STRING_CONSTANT
                                 }
 <STRINGMOD>\n                   { exit(100); }
 <STRINGMOD>.                    { *str++ = *yytext; }
