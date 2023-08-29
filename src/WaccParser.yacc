@@ -2,14 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ast.h"
-#define MAXN 10000
-valStorage sym[MAXN]; // 符号表
+
 
 %}
 
 %union {
     int index;
-    valStorage val;
+    valNode val;
     treeNode *node; 
 }
 
@@ -18,15 +17,17 @@ valStorage sym[MAXN]; // 符号表
 %token RETURN EXIT PRINT PRINTLN IF
 %token THEN ELSE FI WHILE DO DONE
 %token FST SND NEWPAIR CALL BASETYPE
-%token PAIR TRUE FALSE NULLX
-%token CHAR_CONSTANT STRING_CONSTANT INTEGER_CONSTANT
+%token PAIR NULLX
+%token <val> CHAR_CONSTANT STRING_CONSTANT INTEGER_CONSTANT BOOLEAN_CONSTANT
 %token <index> IDENTIFIER
+%type <node> stat lvalue int_liter expr type
+
 
 
 %%
 
 program: 
-    BEGIN func_list stat END        { exit(0); }
+    BEGIN func_list stat END        { visit($2); visit($3); freenode($2); freenode($3); printf("Complete\n"); }
     ;
 
 func_list:
@@ -36,32 +37,32 @@ func_list:
 
 stat:
     SKIP                            { }
-  | type IDENTIFIER '=' rvalue      { $$ = make_binop_node('=', index2node($2), $4); }
-  | lvalue '=' rvalue               { }
-  | READ lvalue
-  | FREE expr
-  | RETURN expr
-  | EXIT expr
-  | PRINT expr
-  | PRINTLN expr
-  | IF expr THEN stat ELSE stat FI
-  | WHILE expr DO stat DONE
-  | BEGIN stat END
-  | stat ';' stat
+  | type IDENTIFIER '=' rvalue      { $$ = make_op_node('=', 2, index2node($1, $2), $4); }
+  | lvalue '=' rvalue               { $$ = make_op_node('=', 2, $1, $3); }
+  | READ lvalue                     { printf("read op\n"); }
+  | FREE expr                       { printf("free op\n"); }
+  | RETURN expr                     { printf("return op\n"); }
+  | EXIT expr                       { printf("exit op\n"); }
+  | PRINT expr                      { printf("print op\n"); }
+  | PRINTLN expr                    { printf("println op\n");}
+  | IF expr THEN stat ELSE stat FI  { printf("IF op\n"); }
+  | WHILE expr DO stat DONE         { printf("while op\n");}
+  | BEGIN stat END                  { printf("begin op\n");}
+  | stat ';' stat                   { printf("stat op\n"); }
     ;
 
 func:
-    type IDENTIFIER '(' param_list ')' IS stat END
+    type IDENTIFIER '(' param_list ')' IS stat END  { printf("function\n"); }
     ;
 
 
 param_list:
-    param param_with_comma
+    param param_with_comma          { printf("param list\n"); }
   | // NULL
     ;
 
 param_with_comma:
-    param_with_comma ',' param
+    param_with_comma ',' param      { printf("param with comma\n"); }
   | // NULL
     ;
 
@@ -70,7 +71,7 @@ param:
     ;
 
 lvalue:
-    IDENTIFIER
+    IDENTIFIER                      { $$ = sym[$1]; }
   | array_elem
   | pair_elem
     ;
@@ -99,7 +100,7 @@ expr_with_comma:
     ;
 
 type:
-    BASETYPE
+    BASETYPE                      { $$ = make_type_node($1); }
   | array_type
   | pair_type
     ;
@@ -119,16 +120,16 @@ pair_elem_type:
     ;
 
 expr:
-    int_liter
-  | bool_liter
-  | CHAR_CONSTANT
-  | STRING_CONSTANT
+    int_liter                     { $$ = $1; }
+  | BOOLEAN_CONSTANT              { $$ = liter2node($1); }
+  | CHAR_CONSTANT                 { $$ = liter2node($1); }
+  | STRING_CONSTANT               { $$ = liter2node($1); }
   | pair_liter
-  | IDENTIFIER
+  | IDENTIFIER                    { $$ = sym[$1]; }
   | array_elem
   | unary_oper expr
   | expr binary_oper expr
-  | '(' expr ')'
+  | '(' expr ')'                  { $$ = $2; }
     ;
 
 unary_oper:
@@ -165,18 +166,9 @@ expr_with_bracket:
     ;
 
 int_liter:
-    int_sign INTEGER_CONSTANT
-    ;
-
-int_sign:
-    '+'
-  | '-'
-  | // NULL
-    ;
-
-bool_liter:
-    TRUE
-  | FALSE
+    '+' INTEGER_CONSTANT            { $$ = liter2node($2); } 
+  | '-' INTEGER_CONSTANT            { $2.val.intval = -$2.val.intval; $$ = liter2node($2); }
+  | INTEGER_CONSTANT                { $$ = liter2node($1); }
     ;
 
 array_liter:

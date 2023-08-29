@@ -3,9 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 #include "util.h"
-#define MAXL 10000
 #include "ast.h"
 #include "y.tab.h"
+#define MAXL 10000
 void yyerror(char *s);
 char buf[MAXL], *str;
 %}
@@ -47,13 +47,21 @@ digit       [0-9]
 "call"                          return CALL;
 "int"|"bool"|"char"|"string"    return BASETYPE;
 "pair"                          return PAIR;
-"true"                          return TRUE;
-"false"                         return FALSE;
+"true"                          {
+                                    yylval.val.inval = 1; 
+                                    yylval.val.vType = BOOLEAN;
+                                    return BOOLEAN_CONSTANT;
+                                }
+"false"                         {
+                                    yylval.val.inval = 0; 
+                                    yylval.val.vType = BOOLEAN;
+                                    return BOOLEAN_CONSTANT;
+                                }
 "null"                          return NULLX;
 
 '[^'\n\"\\]'|'\\[0btnfr\"'\\]'  { 
                                     yylval.val.intval = convertchar(yytext); 
-                                    yyval.val.vType = CHARACTER; 
+                                    yylval.val.vType = CHARACTER; 
                                     return CHAR_CONSTANT;
                                 }
 
@@ -68,8 +76,8 @@ digit       [0-9]
 <STRINGMOD>\\r                  { *str++ = '\r'; }
 <STRINGMOD>\"                   { 
                                     *str = '\0'; BEGIN 0;
-                                    yyval.val.sval = strdup(buf);
-                                    yyval.val.vType = STRING;
+                                    yylval.val.sval = strdup(buf);
+                                    yylval.val.vType = STRING;
                                     return STRING_CONSTANT;
                                 }
 <STRINGMOD>\n                   { exit(100); }
@@ -77,13 +85,13 @@ digit       [0-9]
 
 
 [A-Za-z_][A-Za-z0-9_]*          {
-                                    yyval.index = BKDHash(yytext);
+                                    yylval.index = BKDHash(yytext);
                                     return IDENTIFIER;
                                 }
 
 {digit}+                        { 
                                     yylval.val.intval = atoi(yytext); 
-                                    yyval.val.vType = INTEGER; 
+                                    yylval.val.vType = INTEGER; 
                                     return INTEGER_CONSTANT; 
                                 }
 
