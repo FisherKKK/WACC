@@ -70,7 +70,7 @@ digit       [0-9]
                                     *str = '\0'; BEGIN 0;
                                     yyval.val.sval = strdup(buf);
                                     yyval.val.vType = STRING;
-                                    return STRING_CONSTANT
+                                    return STRING_CONSTANT;
                                 }
 <STRINGMOD>\n                   { exit(100); }
 <STRINGMOD>.                    { *str++ = *yytext; }

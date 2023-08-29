@@ -13,19 +13,20 @@ valStorage sym[MAXN]; // 符号表
     treeNode *node; 
 }
 
-%token LEN ORD CHR GE NE EQ AND OR
+%token LEN ORD CHR GE LE NE EQ AND OR
 %token BEGIN END IS SKIP READ FREE
 %token RETURN EXIT PRINT PRINTLN IF
 %token THEN ELSE FI WHILE DO DONE
 %token FST SND NEWPAIR CALL BASETYPE
 %token PAIR TRUE FALSE NULLX
-%token CHAR_CONSTANT IDENTIFIER
+%token CHAR_CONSTANT STRING_CONSTANT INTEGER_CONSTANT
+%token <index> IDENTIFIER
 
 
 %%
 
 program: 
-    BEGIN func_list stat END
+    BEGIN func_list stat END        { exit(0); }
     ;
 
 func_list:
@@ -34,9 +35,9 @@ func_list:
     ;
 
 stat:
-    SKIP
-  | type IDENTIFIER '=' rvalue
-  | lvalue '=' rvalue
+    SKIP                            { }
+  | type IDENTIFIER '=' rvalue      { $$ = make_binop_node('=', index2node($2), $4); }
+  | lvalue '=' rvalue               { }
   | READ lvalue
   | FREE expr
   | RETURN expr
@@ -120,8 +121,8 @@ pair_elem_type:
 expr:
     int_liter
   | bool_liter
-  | char_liter
-  | str_liter
+  | CHAR_CONSTANT
+  | STRING_CONSTANT
   | pair_liter
   | IDENTIFIER
   | array_elem
@@ -187,3 +188,4 @@ pair_liter:
     NULLX
     ;
 %%
+
