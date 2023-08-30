@@ -5,6 +5,7 @@ void print_indent(int);
 int indent = 2; // 缩进
 
 void visit(treeNode *node) {
+    int i;
     if (!node) {
         printf("Null ptr encountered!\n");
         return;
@@ -15,7 +16,7 @@ void visit(treeNode *node) {
             print_indent(indent);
             printf("OP(%c):\n", node->opr.op);
             indent += 2;
-            for (int i = 0; i < node->opr.nops; i++)
+            for (i = 0; i < node->opr.nops; i++)
                 { visit(node->opr.children[i]); }
             indent -= 2;
             break;
@@ -47,7 +48,8 @@ void visit(treeNode *node) {
 }
 
 void print_indent(int indent) {
-  for(int i=0; i<indent; i++){
+  int i;
+  for(i=0; i<indent; i++){
     printf(" ");
   }
 }

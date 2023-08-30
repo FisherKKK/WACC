@@ -7,7 +7,6 @@
 treeNode *sym[MAXN]; // 符号表
 int current_scope = 0; // 当前作用
 int scope[MAXN]; // 作用域, 采用并查集的思想
-i
 
 void yyerror(char*);
 int yylex();
@@ -16,6 +15,7 @@ treeNode* index2node(treeNode* type, int index);
 treeNode* make_basetype_node(valNode vn);
 treeNode* liter2node(valNode vn);
 void visit(treeNode *node);
+void freenode(treeNode *node);
 
 %}
 
@@ -35,13 +35,19 @@ void visit(treeNode *node);
 %token <val> INT_TYPE BOOLEAN_TYPE CHAR_TYPE STRING_TYPE
 %token <index> IDENTIFIER
 %type <node> stat lvalue rvalue int_liter expr type base_type
+%type <index> unary_oper binary_oper
 
+
+%left GE LE EQ NE '>' '<'
+%left '+' '-'
+%left '*' '/'
+%nonassoc UNIOP
 
 
 %%
 
 program: 
-    BEGINX func_list stat END        {  current_scope = 0; visit($3); printf("Complete\n"); }
+    BEGINX func_list stat END        {  visit($3); freenode($3); printf("Complete\n"); }
     ;
 
 func_list:
@@ -96,7 +102,7 @@ pair_elem:
     ;
 
 rvalue:
-    expr
+    expr                          { $$ = $1; }
   | array_liter
   | NEWPAIR '(' expr ',' expr ')'
   | pair_elem
@@ -115,7 +121,7 @@ expr_with_comma:
 
 type:
     base_type                       { $$ = $1; }
-  | array_type
+  | array_type                      
   | pair_type
     ;
   
@@ -148,33 +154,33 @@ expr:
   | pair_liter
   | IDENTIFIER                    { $$ = sym[$1]; }
   | array_elem
-  | unary_oper expr
-  | expr binary_oper expr
+  | unary_oper expr %prec UNIOP   { $$ = make_op_node($1, 1, $2); }
+  | expr binary_oper expr         { $$ = make_op_node($2, 2, $1, $3); }
   | '(' expr ')'                  { $$ = $2; }
     ;
 
 unary_oper:
-    '!'
-  | '-'
-  | LEN
-  | ORD
-  | CHR
+    '!'                           { $$ = '!'; }
+  | '-'                           { $$ = '-'; }
+  | LEN                           { $$ = LEN; }
+  | ORD                           { $$ = ORD; }
+  | CHR                           { $$ = CHR; }
     ;
 
 binary_oper:
-    '*'
-  | '/'
-  | '%'
-  | '+'
-  | '-'
-  | '>'
-  | GE
-  | '<'
-  | LE
-  | EQ
-  | NE
-  | AND
-  | OR
+    '*'                           { $$ = '*'; }
+  | '/'                           { $$ = '/'; }
+  | '%'                           { $$ = '%'; }
+  | '+'                           { $$ = '+'; }
+  | '-'                           { $$ = '-'; }
+  | '>'                           { $$ = '>'; }
+  | GE                            { $$ = GE; }
+  | '<'                           { $$ = '<'; }
+  | LE                            { $$ = LE; }
+  | EQ                            { $$ = EQ; }
+  | NE                            { $$ = NE; }
+  | AND                           { $$ = AND; }
+  | OR                            { $$ = OR; }
     ;
 
 array_elem:
@@ -187,8 +193,7 @@ expr_with_bracket:
     ;
 
 int_liter:
-    '+' INTEGER_CONSTANT            { $$ = liter2node($2); } 
-  | '-' INTEGER_CONSTANT            { $2.intval = -$2.intval; $$ = liter2node($2); }
+    '+' INTEGER_CONSTANT            { $$ = liter2node($2); }
   | INTEGER_CONSTANT                { $$ = liter2node($1); }
     ;
 
@@ -232,27 +237,44 @@ treeNode* index2node(treeNode *type, int index) {
 
 // 将常量转换为节点
 treeNode* liter2node(valNode vn) {
-  printf("%s\n", vn.sval);
-    treeNode *node;
-    if ((node = malloc(sizeof(*node))) == NULL)
-        yyerror("out of memory\n");
-    node->type = valueType;
-    node->val = vn;
-    return node;
+  treeNode *node;
+  if ((node = malloc(sizeof(*node))) == NULL)
+      yyerror("out of memory\n");
+  node->type = valueType;
+  node->val = vn;
+  return node;
 }
 
 // 将类型转换为节点
 treeNode* make_basetype_node(valNode vn) {
-    treeNode *node;
-    if ((node = malloc(sizeof(*node))) == NULL)
-        yyerror("out of memory");
-    node->type = tpType;
-    node->tp.basetype = vn.intval;
-    return node;
+  treeNode *node;
+  if ((node = malloc(sizeof(*node))) == NULL)
+      yyerror("out of memory");
+  node->type = tpType;
+  node->tp.basetype = vn.intval;
+  return node;
 }
 
 void yyerror(char *s) {
   fprintf(stdout, "%s\n", s);
+}
+
+void freenode(treeNode *node) {
+  if (node == NULL) return;
+  switch (node->type) {
+    case oprType:
+      for (int i = 0; i < node->opr.nops; i++)
+        freenode(node->opr.children[i]);
+      break;
+    case valueType:
+      if (node->val.vType == STRING) free(node->val.sval);
+      break;
+    case idType:
+      free(node->id.vt);
+    case tpType:
+      break; // 暂时不考虑复杂类型
+  }
+  return;
 }
 
 int main(void) {

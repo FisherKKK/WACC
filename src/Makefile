@@ -15,6 +15,6 @@ basic: y.tab.o lex.yy.o ast.c
 	gcc y.tab.o lex.yy.o ast.c -o basic
 
 clean: 
-	rm basic y.tab.* lex.yy.*
+	rm basic y.tab.* lex.yy.* core.*
 
 .PHONY: clean all

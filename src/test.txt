@@ -5,5 +5,5 @@
 # Program:
 
 begin
-  int x = 98 % 2;
+  string x = "aaa"
 end
