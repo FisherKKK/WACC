@@ -3,6 +3,19 @@
 #include <stdlib.h>
 #include "ast.h"
 
+// valNode sym[MAXN]; // 符号表
+treeNode *sym[MAXN]; // 符号表
+int current_scope = 0; // 当前作用
+int scope[MAXN]; // 作用域, 采用并查集的思想
+i
+
+void yyerror(char*);
+int yylex();
+treeNode* make_op_node(int op, int nops, ...);
+treeNode* index2node(treeNode* type, int index);
+treeNode* make_basetype_node(valNode vn);
+treeNode* liter2node(valNode vn);
+void visit(treeNode *node);
 
 %}
 
@@ -13,21 +26,22 @@
 }
 
 %token LEN ORD CHR GE LE NE EQ AND OR
-%token BEGIN END IS SKIP READ FREE
+%token BEGINX END IS SKIP READ FREE
 %token RETURN EXIT PRINT PRINTLN IF
 %token THEN ELSE FI WHILE DO DONE
-%token FST SND NEWPAIR CALL BASETYPE
+%token FST SND NEWPAIR CALL
 %token PAIR NULLX
 %token <val> CHAR_CONSTANT STRING_CONSTANT INTEGER_CONSTANT BOOLEAN_CONSTANT
+%token <val> INT_TYPE BOOLEAN_TYPE CHAR_TYPE STRING_TYPE
 %token <index> IDENTIFIER
-%type <node> stat lvalue int_liter expr type
+%type <node> stat lvalue rvalue int_liter expr type base_type
 
 
 
 %%
 
 program: 
-    BEGIN func_list stat END        { visit($2); visit($3); freenode($2); freenode($3); printf("Complete\n"); }
+    BEGINX func_list stat END        {  current_scope = 0; visit($3); printf("Complete\n"); }
     ;
 
 func_list:
@@ -47,7 +61,7 @@ stat:
   | PRINTLN expr                    { printf("println op\n");}
   | IF expr THEN stat ELSE stat FI  { printf("IF op\n"); }
   | WHILE expr DO stat DONE         { printf("while op\n");}
-  | BEGIN stat END                  { printf("begin op\n");}
+  | BEGINX stat END                  { printf("begin op\n");}
   | stat ';' stat                   { printf("stat op\n"); }
     ;
 
@@ -100,9 +114,16 @@ expr_with_comma:
     ;
 
 type:
-    BASETYPE                      { $$ = make_type_node($1); }
+    base_type                       { $$ = $1; }
   | array_type
   | pair_type
+    ;
+  
+base_type:
+    INT_TYPE                        { $$ = make_basetype_node($1); }            
+  | CHAR_TYPE                       { $$ = make_basetype_node($1); }
+  | STRING_TYPE                     { $$ = make_basetype_node($1); }
+  | BOOLEAN_TYPE                    { $$ = make_basetype_node($1); }
     ;
 
 array_type:
@@ -114,7 +135,7 @@ pair_type:
     ;
 
 pair_elem_type:
-    BASETYPE
+    base_type
   | array_type
   | PAIR
     ;
@@ -167,7 +188,7 @@ expr_with_bracket:
 
 int_liter:
     '+' INTEGER_CONSTANT            { $$ = liter2node($2); } 
-  | '-' INTEGER_CONSTANT            { $2.val.intval = -$2.val.intval; $$ = liter2node($2); }
+  | '-' INTEGER_CONSTANT            { $2.intval = -$2.intval; $$ = liter2node($2); }
   | INTEGER_CONSTANT                { $$ = liter2node($1); }
     ;
 
@@ -180,4 +201,62 @@ pair_liter:
     NULLX
     ;
 %%
+
+treeNode* make_op_node(int op, int nops, ...) {
+    va_list ap;
+    treeNode *node;
+    int i;
+    if ((node = malloc(sizeof(*node) + sizeof(treeNode*) * nops))
+            == NULL)
+        yyerror("out of memory");
+    node->type = oprType;
+    node->opr.op = op;
+    node->opr.nops = nops;
+    va_start(ap, nops);
+    for (i = 0; i < nops; i++)
+        node->opr.children[i] = va_arg(ap, treeNode*);
+    va_end(ap);
+    return node;
+}
+
+/* 将标识符id转换为节点 */
+treeNode* index2node(treeNode *type, int index) {
+    treeNode *node;
+    if ((node = malloc(sizeof(*node))) == NULL)
+        yyerror("out of memory");
+    node->type = idType;
+    node->id.i = index;
+    node->id.vt = type;
+    return sym[index] = node;
+}
+
+// 将常量转换为节点
+treeNode* liter2node(valNode vn) {
+  printf("%s\n", vn.sval);
+    treeNode *node;
+    if ((node = malloc(sizeof(*node))) == NULL)
+        yyerror("out of memory\n");
+    node->type = valueType;
+    node->val = vn;
+    return node;
+}
+
+// 将类型转换为节点
+treeNode* make_basetype_node(valNode vn) {
+    treeNode *node;
+    if ((node = malloc(sizeof(*node))) == NULL)
+        yyerror("out of memory");
+    node->type = tpType;
+    node->tp.basetype = vn.intval;
+    return node;
+}
+
+void yyerror(char *s) {
+  fprintf(stdout, "%s\n", s);
+}
+
+int main(void) {
+  yyparse();
+  return 0;
+}
 

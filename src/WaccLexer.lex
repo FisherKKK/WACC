@@ -24,7 +24,7 @@ digit       [0-9]
 "=="                            return EQ;
 "&&"                            return AND;
 "||"                            return OR;
-"begin"                         return BEGIN;
+"begin"                         return BEGINX;
 "end"                           return END;
 "is"                            return IS;
 "skip"                          return SKIP;
@@ -45,15 +45,37 @@ digit       [0-9]
 "snd"                           return SND;
 "newpair"                       return NEWPAIR;
 "call"                          return CALL;
-"int"|"bool"|"char"|"string"    return BASETYPE;
+"int"                           {
+                                    yylval.val.intval = 0; 
+                                    yylval.val.vType = TYPEKIND;
+                                    return INT_TYPE;
+                                }
+
+"bool"                          {
+                                    yylval.val.intval = 1; 
+                                    yylval.val.vType = TYPEKIND;
+                                    return BOOLEAN_TYPE;
+                                }
+
+"char"                          {
+                                    yylval.val.intval = 2; 
+                                    yylval.val.vType = TYPEKIND;
+                                    return CHAR_TYPE;
+                                }
+
+"string"                        {
+                                    yylval.val.intval = 3; 
+                                    yylval.val.vType = TYPEKIND;
+                                    return STRING_TYPE;
+                                }
 "pair"                          return PAIR;
 "true"                          {
-                                    yylval.val.inval = 1; 
+                                    yylval.val.intval = 1; 
                                     yylval.val.vType = BOOLEAN;
                                     return BOOLEAN_CONSTANT;
                                 }
 "false"                         {
-                                    yylval.val.inval = 0; 
+                                    yylval.val.intval = 0; 
                                     yylval.val.vType = BOOLEAN;
                                     return BOOLEAN_CONSTANT;
                                 }

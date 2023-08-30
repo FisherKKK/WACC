@@ -1,13 +1,16 @@
+#ifndef __AST_H
+#define __AST_H
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
 #define MAXN 10000
 
 typedef enum { oprType, valueType, idType,  tpType} treeType;
-typedef enum { INTEGER, BOOLEAN, CHARACTER, STRING} literType; // 尝试进行类型检查
+typedef enum { INTEGER, BOOLEAN, CHARACTER, STRING, TYPEKIND} literType; // 尝试进行类型检查
 
 
 // 常量/值节点
-typedef struct {
+typedef struct valNode {
     literType vType; // 值类型
     union {
         int intval; // 存储整型数字
@@ -17,8 +20,9 @@ typedef struct {
 
 // 标识符/变量节点
 typedef struct idNode {
-    treeNode *vt; // 变量类型
+    struct treeNode *vt; // 变量类型
     int i; // 变量对应的id
+    int scope; // 变量作用域
 } idNode;
 
 // 运算符节点
@@ -33,7 +37,7 @@ typedef struct oprNode {
 typedef struct typeNode {
     union {
         int basetype;
-        treeNode *complextype;
+        struct treeNode *complextype;
     };
 } typeNode;
 
@@ -46,12 +50,5 @@ typedef struct treeNode {
         typeNode tp; // 变量类型
     };
 } treeNode;
-
-// valNode sym[MAXN]; // 符号表
-treeNode *sym[MAXN]; // 符号表
-
-void yyerror(char*);
-treeNode* make_op_node(int op, int nops, ...);
-treeNode* index2node(treeNode* type, int index);
-treeNode* make_basetype_node(int basetype);
+#endif
 
