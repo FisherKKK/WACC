@@ -14,8 +14,12 @@ treeNode* make_op_node(int op, int nops, ...);
 treeNode* index2node(treeNode* type, int index);
 treeNode* make_basetype_node(valNode vn);
 treeNode* liter2node(valNode vn);
+treeNode *make_empty_node();
 void visit(treeNode *node);
 void freenode(treeNode *node);
+int check_type(treeNode* t1, treeNode *t2);
+int check_int(treeNode* node);
+int check_boolean(treeNode *node);
 
 %}
 
@@ -34,7 +38,7 @@ void freenode(treeNode *node);
 %token <val> CHAR_CONSTANT STRING_CONSTANT INTEGER_CONSTANT BOOLEAN_CONSTANT
 %token <val> INT_TYPE BOOLEAN_TYPE CHAR_TYPE STRING_TYPE
 %token <index> IDENTIFIER
-%type <node> stat lvalue rvalue int_liter expr type base_type
+%type <node> stat lvalue rvalue int_liter expr type base_type func
 %type <index> unary_oper binary_oper
 
 
@@ -56,23 +60,23 @@ func_list:
     ;
 
 stat:
-    SKIP                            { }
-  | type IDENTIFIER '=' rvalue      { $$ = make_op_node('=', 2, index2node($1, $2), $4); }
-  | lvalue '=' rvalue               { $$ = make_op_node('=', 2, $1, $3); }
-  | READ lvalue                     { printf("read op\n"); }
-  | FREE expr                       { printf("free op\n"); }
-  | RETURN expr                     { printf("return op\n"); }
-  | EXIT expr                       { printf("exit op\n"); }
-  | PRINT expr                      { printf("print op\n"); }
-  | PRINTLN expr                    { printf("println op\n");}
-  | IF expr THEN stat ELSE stat FI  { printf("IF op\n"); }
-  | WHILE expr DO stat DONE         { printf("while op\n");}
-  | BEGINX stat END                  { printf("begin op\n");}
-  | stat ';' stat                   { printf("stat op\n"); }
+    SKIP                            { $$ = make_empty_node(); }
+  | type IDENTIFIER '=' rvalue      { $$ = make_op_node('=', 2, index2node($1, $2), $4); check_type($1, $4); }
+  | lvalue '=' rvalue               { $$ = make_op_node('=', 2, $1, $3); check_type($1, $3); }
+  | READ lvalue                     { $$ = make_op_node(READ, 1, $2); }
+  | FREE expr                       { $$ = make_op_node(FREE, 1, $2); }
+  | RETURN expr                     { $$ = make_op_node(RETURN, 1, $2); }
+  | EXIT expr                       { $$ = make_op_node(EXIT, 1, $2); check_int($2); }
+  | PRINT expr                      { $$ = make_op_node(PRINT, 1, $2); }
+  | PRINTLN expr                    { $$ = make_op_node(PRINTLN, 1, $2); }
+  | IF expr THEN stat ELSE stat FI  { $$ = make_op_node(IF, 3, $2, $4, $6); check_boolean($2); }
+  | WHILE expr DO stat DONE         { $$ = make_op_node(WHILE, 2, $2, $4); check_boolean($2); }
+  | BEGINX stat END                 { $$ = $2; }
+  | stat ';' stat                   { $$ = make_op_node(';', 2, $1, $3); }
     ;
 
 func:
-    type IDENTIFIER '(' param_list ')' IS stat END  { printf("function\n"); }
+    type IDENTIFIER '(' param_list ')' IS stat END  { $$ = make_empty_node(); }
     ;
 
 
@@ -249,9 +253,18 @@ treeNode* liter2node(valNode vn) {
 treeNode* make_basetype_node(valNode vn) {
   treeNode *node;
   if ((node = malloc(sizeof(*node))) == NULL)
-      yyerror("out of memory");
+    yyerror("out of memory");
   node->type = tpType;
   node->tp.basetype = vn.intval;
+  return node;
+}
+
+// skip类型的空节点
+treeNode *make_empty_node() {
+  treeNode *node;
+  if ((node = malloc(sizeof(*node))) == NULL)
+    yyerror("out of memory");
+  node->type = skipType;
   return node;
 }
 
@@ -265,16 +278,31 @@ void freenode(treeNode *node) {
     case oprType:
       for (int i = 0; i < node->opr.nops; i++)
         freenode(node->opr.children[i]);
+      free(node);
       break;
+
     case valueType:
       if (node->val.vType == STRING) free(node->val.sval);
+      free(node);
       break;
     case idType:
-      free(node->id.vt);
+      /* free(node->id.vt); */
     case tpType:
       break; // 暂时不考虑复杂类型
   }
   return;
+}
+
+int check_type(treeNode* t1, treeNode *t2) {
+  if (t1->type == t2->type && t1->type = tpType) {
+    return t1->tp.basetype == t2->tp.basetype;
+  }
+  return 0;
+}
+
+treeNode* copy(treeNode *t) {
+  treeNode *node;
+  return node;
 }
 
 int main(void) {
