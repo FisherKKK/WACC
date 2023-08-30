@@ -14,7 +14,20 @@ void visit(treeNode *node) {
     switch (node->type) {
         case oprType: 
             print_indent(indent);
-            printf("OP(%c):\n", node->opr.op);
+            switch (node->opr.op) {
+                case LEN: puts("OP(len):"); break;
+                case ORD: puts("OP(ORD):"); break;
+                case CHR: puts("OP(CHR):"); break;
+                case GE: puts("OP(>=):"); break;
+                case LE: puts("OP(<=):"); break;
+                case EQ: puts("OP(==):"); break;
+                case NE: puts("OP(!=):"); break;
+                case AND: puts("OP(&&):"); break;
+                case OR: puts("OP(||):"); break;
+                case IF: puts("OP(IF):"); break;
+                case WHILE: puts("OP(WHILE):"); break;
+                default: printf("OP(%c):\n", node->opr.op);
+            }
             indent += 2;
             for (i = 0; i < node->opr.nops; i++)
                 { visit(node->opr.children[i]); }
@@ -44,6 +57,11 @@ void visit(treeNode *node) {
             print_indent(indent + 2);
             printf("%d\n", node->tp.basetype);
             break;
+        
+        case skipType:
+            print_indent(indent);
+            printf("SKIP\n");
+            break;
     }
 }
 
@@ -53,6 +71,8 @@ void print_indent(int indent) {
     printf(" ");
   }
 }
+
+
 
 /*
 typedef struct treeNode {

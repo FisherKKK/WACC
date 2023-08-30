@@ -5,7 +5,7 @@
 #include <stdio.h>
 #define MAXN 10000
 
-typedef enum { oprType, valueType, idType,  tpType} treeType;
+typedef enum { oprType, valueType, idType,  tpType, skipType} treeType;
 typedef enum { INTEGER, BOOLEAN, CHARACTER, STRING, TYPEKIND} literType; // 尝试进行类型检查
 
 
@@ -29,12 +29,14 @@ typedef struct idNode {
 typedef struct oprNode {
     int op; // 运算符
     int nops; // 操作数数目
+    struct typeNode* resType; // 结果类型
     struct treeNode* children[]; // 操作符的操作数
 } oprNode;
 
 
 // 类型节点
 typedef struct typeNode {
+    int isbase; // 0-complex 1-base
     union {
         int basetype;
         struct treeNode *complextype;
@@ -47,8 +49,9 @@ typedef struct treeNode {
         idNode id; // 标识符
         valNode val; // 常量/值
         oprNode opr; // 操作符
-        typeNode tp; // 变量类型
     };
+    typeNode tp; // 节点所属的变量类型
+    int istp; // 节点是否具有变量类型, 例如if没有, 但是 = >存在
 } treeNode;
 #endif
 
