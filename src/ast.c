@@ -26,6 +26,9 @@ void visit(treeNode *node) {
                 case OR: puts("OP(||):"); break;
                 case IF: puts("OP(IF):"); break;
                 case WHILE: puts("OP(WHILE):"); break;
+                case PRINTLN: puts("OP(PRINTLN):"); break;
+                case PRINT: puts("OP(PRINT):"); break;
+                case EXIT: puts("OP(EXIT):"); break;
                 default: printf("OP(%c):\n", node->opr.op);
             }
             indent += 2;

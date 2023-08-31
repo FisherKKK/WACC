@@ -17,9 +17,8 @@ treeNode* liter2node(valNode vn);
 treeNode *make_empty_node();
 void visit(treeNode *node);
 void freenode(treeNode *node);
-int check_type(treeNode* t1, treeNode *t2);
-int check_int(treeNode* node);
-int check_boolean(treeNode *node);
+int check_uniop(treeNode *od, int op);
+int check_binary_op(treeNode *od1, treeNode *od2, int op, int all);
 
 %}
 
@@ -61,16 +60,16 @@ func_list:
 
 stat:
     SKIP                            { $$ = make_empty_node(); }
-  | type IDENTIFIER '=' rvalue      { $$ = make_op_node('=', 2, index2node($1, $2), $4); check_type($1, $4); }
-  | lvalue '=' rvalue               { $$ = make_op_node('=', 2, $1, $3); check_type($1, $3); }
+  | type IDENTIFIER '=' rvalue      { check_binary_op($1, $4, '=', 1);  $$ = make_op_node('=', 2, index2node($1, $2), $4); }
+  | lvalue '=' rvalue               { check_binary_op($1, $3, '=', 1); $$ = make_op_node('=', 2, $1, $3);  }
   | READ lvalue                     { $$ = make_op_node(READ, 1, $2); }
   | FREE expr                       { $$ = make_op_node(FREE, 1, $2); }
   | RETURN expr                     { $$ = make_op_node(RETURN, 1, $2); }
-  | EXIT expr                       { $$ = make_op_node(EXIT, 1, $2); check_int($2); }
+  | EXIT expr                       { check_uniop($2, EXIT); $$ = make_op_node(EXIT, 1, $2); }
   | PRINT expr                      { $$ = make_op_node(PRINT, 1, $2); }
   | PRINTLN expr                    { $$ = make_op_node(PRINTLN, 1, $2); }
-  | IF expr THEN stat ELSE stat FI  { $$ = make_op_node(IF, 3, $2, $4, $6); check_boolean($2); }
-  | WHILE expr DO stat DONE         { $$ = make_op_node(WHILE, 2, $2, $4); check_boolean($2); }
+  | IF expr THEN stat ELSE stat FI  { check_uniop($2, IF); $$ = make_op_node(IF, 3, $2, $4, $6);  }
+  | WHILE expr DO stat DONE         { check_uniop($2, WHILE); $$ = make_op_node(WHILE, 2, $2, $4); }
   | BEGINX stat END                 { $$ = $2; }
   | stat ';' stat                   { $$ = make_op_node(';', 2, $1, $3); }
     ;
@@ -158,8 +157,8 @@ expr:
   | pair_liter
   | IDENTIFIER                    { $$ = sym[$1]; }
   | array_elem
-  | unary_oper expr %prec UNIOP   { $$ = make_op_node($1, 1, $2); }
-  | expr binary_oper expr         { $$ = make_op_node($2, 2, $1, $3); }
+  | unary_oper expr %prec UNIOP   { check_uniop($2, $1); $$ = make_op_node($1, 1, $2); }
+  | expr binary_oper expr         { check_binary_op($1, $3, $2, 0); $$ = make_op_node($2, 2, $1, $3); }
   | '(' expr ')'                  { $$ = $2; }
     ;
 
@@ -211,6 +210,44 @@ pair_liter:
     ;
 %%
 
+
+int check_binary_op(treeNode *od1, treeNode *od2, int op, int all) {
+  int same = (od1->tp.basetype == od2->tp.basetype); // TODO: 仅考虑基本类型
+  if (!same) { puts("Must same Type"); exit(200); }
+  /* if (all || op == NE || op == EQ || op == '=') return same; */
+  switch (op) {
+    case '*':
+    case '+':
+    case '-':
+    case '/':
+    case '%':  if (od1->tp.basetype != 0) puts("Must INT"), exit(200);
+
+    case '>':
+    case GE:
+    case LE:
+    case '<': if (!(od1->tp.basetype == 0 || od1->tp.basetype)) puts("Must INT/CHAR"), exit(200);
+
+    case AND:
+    case OR: if (od1->tp.basetype != 1) puts("MUST BOOLEAN"), exit(200);
+  }
+  return 0;
+}
+
+int check_uniop(treeNode *od, int op) {
+  switch (op) {
+    case IF:
+    case WHILE:
+    case '!': if (od->tp.basetype != 1) puts("Must BOOLEAN"), exit(200);
+
+    case EXIT:
+    case CHR:
+    case '-': if (od->tp.basetype != 0) puts("Must INT"), exit(200);
+
+    case ORD: if (od->tp.basetype != 2) puts("Must CHAR"), exit(200);
+  }
+  return 0;
+}
+
 treeNode* make_op_node(int op, int nops, ...) {
     va_list ap;
     treeNode *node;
@@ -223,10 +260,45 @@ treeNode* make_op_node(int op, int nops, ...) {
     node->opr.nops = nops;
     va_start(ap, nops);
     for (i = 0; i < nops; i++)
-        node->opr.children[i] = va_arg(ap, treeNode*);
+        { node->opr.children[i] = va_arg(ap, treeNode*); }
     va_end(ap);
+    node->istp = 0;
+    switch (op) {
+      case ORD:
+      case '+':
+      case '-':
+      case '*':
+      case '/':
+      case '%':
+                node->istp = 1; 
+                node->tp.isbase = 1; 
+                node->tp.basetype = 0;
+                break;
+      case '>':
+      case '<':
+      case '!':
+      case LE:
+      case GE:
+      case NE:
+      case EQ:
+      case AND:
+      case OR: 
+                node->istp = 1; 
+                node->tp.isbase = 1; 
+                node->tp.basetype = 1;
+                break;
+      case CHR:
+                node->istp = 1;
+                node->tp.isbase = 1;
+                node->tp.basetype = 2;
+                break;
+
+    }
+
     return node;
 }
+
+
 
 /* 将标识符id转换为节点 */
 treeNode* index2node(treeNode *type, int index) {
@@ -235,27 +307,37 @@ treeNode* index2node(treeNode *type, int index) {
         yyerror("out of memory");
     node->type = idType;
     node->id.i = index;
-    node->id.vt = type;
+    node->istp = 1;
+    node->tp = type->tp;
     return sym[index] = node;
 }
 
-// 将常量转换为节点
+// 将常量转换为节点, 设置结果类型
 treeNode* liter2node(valNode vn) {
   treeNode *node;
   if ((node = malloc(sizeof(*node))) == NULL)
       yyerror("out of memory\n");
   node->type = valueType;
   node->val = vn;
+  node->tp.isbase = 1;
+  node->istp = 1; // 具备结果类型
+  switch (vn.vType) {
+    case INTEGER:  node->tp.basetype = 0; break;
+    case BOOLEAN:  node->tp.basetype = 1; break;
+    case CHARACTER: node->tp.basetype = 2; break;
+    case STRING: node->tp.basetype = 3; break;
+  }
   return node;
 }
 
-// 将类型转换为节点
+// 将类型转换为节点, 是个类型标识, 本身不具有结果类型
 treeNode* make_basetype_node(valNode vn) {
   treeNode *node;
   if ((node = malloc(sizeof(*node))) == NULL)
     yyerror("out of memory");
   node->type = tpType;
   node->tp.basetype = vn.intval;
+  node->istp = 0; // 本身不具有类型
   return node;
 }
 
@@ -265,6 +347,7 @@ treeNode *make_empty_node() {
   if ((node = malloc(sizeof(*node))) == NULL)
     yyerror("out of memory");
   node->type = skipType;
+  node->istp = 0; // 不具备结果类型
   return node;
 }
 
@@ -293,12 +376,6 @@ void freenode(treeNode *node) {
   return;
 }
 
-int check_type(treeNode* t1, treeNode *t2) {
-  if (t1->type == t2->type && t1->type = tpType) {
-    return t1->tp.basetype == t2->tp.basetype;
-  }
-  return 0;
-}
 
 treeNode* copy(treeNode *t) {
   treeNode *node;
