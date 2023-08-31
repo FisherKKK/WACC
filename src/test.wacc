@@ -1,17 +1,18 @@
-# if condition type mismatch
+# Arguments can be shadowed by the function body
 
 # Output:
-# #semantic_error#
+# true
+#
 
-# Exit:
-# 200
-
-# Program:
+#Program:
 
 begin
-  if 15 + 6 then 
-    skip 
-  else 
-    skip
-  fi
+  int f(int x) is
+    bool x = true ;
+    return 10
+  end
+
+  int x = call f(5);
+  println x
+
 end

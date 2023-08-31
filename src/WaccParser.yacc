@@ -4,7 +4,7 @@
 #include "ast.h"
 
 // valNode sym[MAXN]; // 符号表
-treeNode *sym[MAXN]; // 符号表
+treeNode *sym[MAXN]; // 符号表, 存放变量和函数
 int current_scope = 0; // 当前作用
 int scope[MAXN]; // 作用域, 采用并查集的思想
 
@@ -19,7 +19,13 @@ void visit(treeNode *node);
 void freenode(treeNode *node);
 int check_uniop(treeNode *od, int op);
 int check_binary_op(treeNode *od1, treeNode *od2, int op, int all);
-
+treeNode *make_function_node(int index, treeNode *fn, treeNode *params, treeNode *body);
+treeNode* make_param_node(int index, treeNode *tn);
+treeNode* make_params_node(treeNode *node);
+treeNode* add_param(treeNode *l, treeNode *p);
+treeNode* make_call_node(int index, treeNode *arg);
+treeNode* make_expr_list(treeNode *tn);
+treeNode* add_expr(treeNode *l, treeNode *e);
 %}
 
 %union {
@@ -37,7 +43,7 @@ int check_binary_op(treeNode *od1, treeNode *od2, int op, int all);
 %token <val> CHAR_CONSTANT STRING_CONSTANT INTEGER_CONSTANT BOOLEAN_CONSTANT
 %token <val> INT_TYPE BOOLEAN_TYPE CHAR_TYPE STRING_TYPE
 %token <index> IDENTIFIER
-%type <node> stat lvalue rvalue int_liter expr type base_type func
+%type <node> stat lvalue rvalue int_liter expr type base_type func param_list param arg_list
 %type <index> unary_oper binary_oper
 
 
@@ -54,7 +60,7 @@ program:
     ;
 
 func_list:
-    func_list func
+    func_list func                    { }
   | // NULL
     ;
 
@@ -66,8 +72,8 @@ stat:
   | FREE expr                       { $$ = make_op_node(FREE, 1, $2); }
   | RETURN expr                     { $$ = make_op_node(RETURN, 1, $2); }
   | EXIT expr                       { check_uniop($2, EXIT); $$ = make_op_node(EXIT, 1, $2); }
-  | PRINT expr                      { $$ = make_op_node(PRINT, 1, $2); }
-  | PRINTLN expr                    { $$ = make_op_node(PRINTLN, 1, $2); }
+  | PRINT expr                      { check_uniop($2, PRINT);  $$ = make_op_node(PRINT, 1, $2); }
+  | PRINTLN expr                    { check_uniop($2, PRINTLN); $$ = make_op_node(PRINTLN, 1, $2); }
   | IF expr THEN stat ELSE stat FI  { check_uniop($2, IF); $$ = make_op_node(IF, 3, $2, $4, $6);  }
   | WHILE expr DO stat DONE         { check_uniop($2, WHILE); $$ = make_op_node(WHILE, 2, $2, $4); }
   | BEGINX stat END                 { $$ = $2; }
@@ -75,22 +81,18 @@ stat:
     ;
 
 func:
-    type IDENTIFIER '(' param_list ')' IS stat END  { $$ = make_empty_node(); }
+    type IDENTIFIER '(' param_list ')' IS stat END  {  check_binary_op($1, $7, 'f', 1); $$ = make_function_node($2, $1, $4, $7);}
     ;
 
 
 param_list:
-    param param_with_comma          { printf("param list\n"); }
-  | // NULL
-    ;
-
-param_with_comma:
-    param_with_comma ',' param      { printf("param with comma\n"); }
-  | // NULL
+    param                           { $$ = make_params_node($1); }
+  | param_list ',' param            { $$ = add_param($1, $3); }
+  | /* NULL */                      { $$ = make_params_node(NULL); }
     ;
 
 param:
-    type IDENTIFIER
+    type IDENTIFIER                 { $$ = make_param_node($2, $1); }
     ;
 
 lvalue:
@@ -109,12 +111,13 @@ rvalue:
   | array_liter
   | NEWPAIR '(' expr ',' expr ')'
   | pair_elem
-  | CALL IDENTIFIER '(' arg_list ')'
+  | CALL IDENTIFIER '(' arg_list ')' { $$ = make_call_node($2, $4); }
     ;
 
 arg_list:
-    expr expr_with_comma
-  | // NULL
+    expr                             { $$ = make_expr_list($1); }
+  | arg_list ',' expr                { $$ = add_expr($1, $3); }
+  | /* NULL */                       { $$ = make_expr_list(NULL); }
     ;
 
 expr_with_comma:
@@ -229,6 +232,9 @@ int check_binary_op(treeNode *od1, treeNode *od2, int op, int all) {
 
     case AND:
     case OR: if (od1->tp.basetype != 1) puts("MUST BOOLEAN"), exit(200); break;
+
+    case 'f':
+              if (!od2->istp) puts("Function MUST RETURN"), exit(200); break;
   }
   return 0;
 }
@@ -248,6 +254,7 @@ int check_uniop(treeNode *od, int op) {
   return 0;
 }
 
+//TODO 处理;问题
 treeNode* make_op_node(int op, int nops, ...) {
     va_list ap;
     treeNode *node;
@@ -292,9 +299,19 @@ treeNode* make_op_node(int op, int nops, ...) {
                 node->tp.isbase = 1;
                 node->tp.basetype = 2;
                 break;
-
+      
+      case ';':
+              if (node->opr.children[1]->istp)
+                { 
+                  node->istp = 1; node->tp.isbase = 1; // 暂时未考虑复杂类型
+                  node->tp.basetype = node->opr.children[1]->tp.basetype; 
+                }
+              break;
+      case RETURN:
+              node->istp = 1; node->tp.isbase = 1;
+              node->tp.basetype = node->opr.children[0]->tp.basetype;
+              break;
     }
-
     return node;
 }
 
@@ -376,10 +393,84 @@ void freenode(treeNode *node) {
   return;
 }
 
-
+// 拷贝节点, 防止多个指针引用同一个地址
 treeNode* copy(treeNode *t) {
   treeNode *node;
   return node;
+}
+
+treeNode *make_function_node(int index, treeNode *fn, treeNode *params, treeNode *body) {
+  treeNode *node;
+  if ((node = malloc(sizeof(*node))) == NULL)
+    yyerror("out of memory");
+  node->type = funcType;
+  node->istp = 0; // 不属于结果类型, 但是具有类型
+  node->tp = fn->tp; // 按照道理应该使用copy方法
+  node->func.component[0] = params;
+  node->func.component[1] = body;
+  return sym[index] = node;
+}
+
+treeNode* make_param_node(int index, treeNode *tn) {
+    treeNode *node;
+    if ((node = malloc(sizeof(*node))) == NULL)
+        yyerror("out of memory\n");
+    node->type = paramType;
+    node->tp = tn->tp; // 内存泄漏问题
+    return sym[index] = node;
+}
+
+treeNode* make_params_node(treeNode *tn) {
+    treeNode *node;
+    if ((node = malloc(sizeof(*node))) == NULL)
+        yyerror("out of memory\n");
+    node->type = listType;
+    node->list.size = 0;
+    if (tn != NULL) {
+      node->list.items[0] = tn;
+      node->list.size++;
+    }
+    return node;
+}
+
+
+treeNode* add_param(treeNode *l, treeNode *p) {
+    int *sz = &l->list.size;
+    l->list.items[*sz] = p;
+    (*sz)++;
+    return l;
+}
+
+treeNode* make_call_node(int index, treeNode *arg) {
+    treeNode *node;
+    if ((node = malloc(sizeof(*node))) == NULL)
+        yyerror("out of memory\n");
+    node->type = callType;
+    node->istp = 1;
+    node->tp = sym[index]->tp;
+    node->call.args = arg;
+    node->call.fn = index;
+    return node;
+}
+
+treeNode* make_expr_list(treeNode *tn) {
+    treeNode *node;
+    if ((node = malloc(sizeof(*node))) == NULL)
+        yyerror("out of memory\n");
+    node->type = listType;
+    node->list.size = 0;
+    if (tn != NULL) {
+      node->list.items[0] = tn;
+      node->list.size++;
+    }
+    return node;
+}
+
+treeNode* add_expr(treeNode *l, treeNode *e) {
+    int *sz = &l->list.size;
+    l->list.items[*sz] = e;
+    (*sz)++;
+    return l;
 }
 
 int main(void) {

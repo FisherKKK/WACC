@@ -107,7 +107,7 @@ digit       [0-9]
 
 
 [A-Za-z_][A-Za-z0-9_]*          {
-                                    yylval.index = BKDHash(yytext);
+                                    yylval.index = BKDHash(yytext) % MAXN;
                                     return IDENTIFIER;
                                 }
 
