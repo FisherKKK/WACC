@@ -1,0 +1,31 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]
+then
+    echo "Usage: $0 <filename>"
+    exit 1
+fi
+
+filename="$1"
+
+./basic < "$filename"
+
+ec=$? # 
+
+if [ $ec -eq 0 ]
+then
+    echo "Success"
+    exit 0
+fi
+
+if [ $ec -eq 100 ]
+then
+    echo "Syntax Error"
+    exit 100
+fi
+
+if [ $ec -eq 200 ]
+then 
+    echo "Semantic Error"
+    exit 200
+fi

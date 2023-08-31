@@ -56,7 +56,7 @@ treeNode* add_expr(treeNode *l, treeNode *e);
 %%
 
 program: 
-    BEGINX func_list stat END        {  visit($3); freenode($3); printf("Complete\n"); }
+    BEGINX func_list stat END        {  /* visit($3); */ freenode($3); printf("Complete\n"); }
     ;
 
 func_list:
@@ -369,7 +369,8 @@ treeNode *make_empty_node() {
 }
 
 void yyerror(char *s) {
-  fprintf(stdout, "%s\n", s);
+  /* fprintf(stdout, "%s\n", s); */
+  exit(100);
 }
 
 void freenode(treeNode *node) {

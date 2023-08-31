@@ -120,7 +120,7 @@ digit       [0-9]
 
 #.*\n                           { } // 注释语句不处理
 [ \t\n]                         { } // 不处理空白符
-.                               yyerror("Unknown Character");
+.                               exit(100);
 %%
 
 int yywrap(void) {
