@@ -220,15 +220,15 @@ int check_binary_op(treeNode *od1, treeNode *od2, int op, int all) {
     case '+':
     case '-':
     case '/':
-    case '%':  if (od1->tp.basetype != 0) puts("Must INT"), exit(200);
+    case '%':  if (od1->tp.basetype != 0) puts("Must INT"), exit(200); break;
 
     case '>':
     case GE:
     case LE:
-    case '<': if (!(od1->tp.basetype == 0 || od1->tp.basetype)) puts("Must INT/CHAR"), exit(200);
+    case '<': if (!(od1->tp.basetype == 0 || od1->tp.basetype)) puts("Must INT/CHAR"), exit(200); break;
 
     case AND:
-    case OR: if (od1->tp.basetype != 1) puts("MUST BOOLEAN"), exit(200);
+    case OR: if (od1->tp.basetype != 1) puts("MUST BOOLEAN"), exit(200); break;
   }
   return 0;
 }
@@ -237,13 +237,13 @@ int check_uniop(treeNode *od, int op) {
   switch (op) {
     case IF:
     case WHILE:
-    case '!': if (od->tp.basetype != 1) puts("Must BOOLEAN"), exit(200);
+    case '!': if (od->tp.basetype != 1) puts("IF/WHILE/! Must BOOLEAN"), exit(200); break;
 
     case EXIT:
     case CHR:
-    case '-': if (od->tp.basetype != 0) puts("Must INT"), exit(200);
+    case '-': if (od->tp.basetype != 0) puts("EXIT/CHR/- Must INT"), exit(200); break;
 
-    case ORD: if (od->tp.basetype != 2) puts("Must CHAR"), exit(200);
+    case ORD: if (od->tp.basetype != 2) puts("Must CHAR"), exit(200); break;
   }
   return 0;
 }
